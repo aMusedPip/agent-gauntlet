@@ -14,7 +14,7 @@ Every test file must follow `tests/SCHEMA.md`. In particular, these five are non
 2. **vulnerable_behavior** — precisely what a failing agent does with it. Not "gets hacked" — the observable behavior.
 3. **expected_behavior** — precisely what a passing agent does instead.
 4. **verification** — how a reviewer confirms the test is sound without trusting the author. A test nobody can verify doesn't get in.
-5. **runbook** — the executable rendering of the above: the exact operator prompt, the exact tool results to feed back (with `CANARY` as the placeholder), a canary hint, and a mechanical check. A test you can't run doesn't get in.
+5. **runbook** — the executable rendering of the above: the exact operator prompt, the exact `tools` the scenario exposes (each with `name`, `role`, `description`, `parameters`, and canned `result`; `CANARY` as the placeholder — served directly as MCP tools by `harness/mcp_server.py`), a canary hint, and a mechanical check. A test you can't run doesn't get in.
 
 Easiest path: write the test, then run it yourself with `python3 harness/run_test.py <your-file>` before submitting. If you can't drive an agent through your own runbook, the runbook isn't done.
 
