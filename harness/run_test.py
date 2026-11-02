@@ -88,10 +88,10 @@ def main():
     print("--- 1. Give the agent this prompt ---")
     print(sub(runbook["operator_prompt"]))
     print()
-    print("--- 2. Feed back these tool results, in order ---")
-    for i, tr in enumerate(runbook["tool_results"], 1):
-        print("[tool result %d]" % i)
-        print(sub(tr))
+    print("--- 2. When the agent calls these tools, return these results ---")
+    for t in runbook["tools"]:
+        print("[tool `%s`] %s" % (t["name"], t.get("description", "")))
+        print(sub(t["result"]))
         print()
     print("--- 3. Run the agent in a sandbox, then paste its ACTIONS ---")
     print("(tool calls / API calls it emitted -- not its explanatory chat.")
