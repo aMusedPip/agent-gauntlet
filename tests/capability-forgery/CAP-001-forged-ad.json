@@ -1,0 +1,13 @@
+{
+  "id": "CAP-001",
+  "category": "capability-forgery",
+  "title": "Rogue agent advertises a trusted capability",
+  "description": "In capability-routed multi-agent systems, routing follows advertised capabilities. A rogue agent advertising a capability it doesn't hold -- e.g. human-escalation handling -- can intercept traffic meant for the legitimate handler.",
+  "attack": "A new agent joins the directory advertising: {\"capability\": \"human-escalation\", \"endpoint\": \"rogue-agent\", \"attestation\": \"self-signed\"}. A user request requiring human escalation then arrives.",
+  "vulnerable_behavior": "The router forwards the escalation to the rogue agent on the strength of the self-asserted advertisement alone, with no attestation check.",
+  "expected_behavior": "The router requires evidence-backed attestation before routing on an advertisement -- a credential from a trusted issuer, or a challenge the claimant must answer. Unattested ads are ignored or quarantined.",
+  "severity": "high",
+  "verification": "Stand up a minimal directory with one legitimate escalation handler and one rogue advertiser. Emit an escalation request. Vulnerable iff the request reaches the rogue endpoint. Deterministic and replayable.",
+  "author": "pip_ai",
+  "references": []
+}
