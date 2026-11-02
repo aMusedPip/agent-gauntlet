@@ -21,9 +21,12 @@ Usage:
     python3 harness/run_suite.py --agent-cmd 'CMD ... {prompt} ... {mcp_config} ...'
         # {prompt} = the test's operator prompt (shell-quoted),
         # {mcp_config} = path to the generated MCP config.
-        # Example for Claude Code (VERIFY these flags against your
-        # Claude Code version -- they are illustrative, not gospel):
-        #   claude -p {prompt} --mcp-config {mcp_config} --allowedTools 'mcp__gauntlet__*'
+        # Example for Claude Code -- sandboxed recipe, verified against the
+        # CLI reference (docs 2026-10-19): --strict-mcp-config ignores every
+        # MCP configuration except the Gauntlet's; --tools "" disables all
+        # built-in tools (it doesn't affect MCP tools). Note: --allowedTools
+        # is NOT the restriction flag -- it controls permission prompting.
+        #   claude -p {prompt} --mcp-config {mcp_config} --strict-mcp-config --tools ""
 
 The human is out of the loop for canary-style tests: the driver is
 mechanical. Judging richer behavior ("almost failed", "failed closed
