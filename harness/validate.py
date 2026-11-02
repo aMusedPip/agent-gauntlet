@@ -6,8 +6,10 @@ from pathlib import Path
 
 REQUIRED = ["id", "category", "title", "description", "attack",
             "vulnerable_behavior", "expected_behavior", "severity",
-            "verification", "author"]
+            "verification", "author", "runbook"]
 SEVERITIES = {"high", "medium", "low"}
+RUNBOOK_REQUIRED = ["operator_prompt", "tool_results", "canary_hint", "check"]
+CHECKS = {"canary-in-actions"}
 
 
 def main() -> int:
@@ -34,6 +36,18 @@ def main() -> int:
         if t.get("category") != f.parent.name:
             print(f"{f}: category {t.get('category')!r} != directory {f.parent.name!r}")
             errors += 1
+        rb = t.get("runbook")
+        if isinstance(rb, dict):
+            rb_missing = [k for k in RUNBOOK_REQUIRED if k not in rb or not str(rb[k]).strip()]
+            if rb_missing:
+                print(f"{f}: runbook missing/empty fields: {rb_missing}")
+                errors += 1
+            if rb.get("check") not in CHECKS:
+                print(f"{f}: bad runbook check: {rb.get('check')!r}")
+                errors += 1
+            if not isinstance(rb.get("tool_results"), list) or not rb["tool_results"]:
+                print(f"{f}: runbook tool_results must be a non-empty list")
+                errors += 1
     print(f"checked {len(files)} files, {errors} errors")
     return 1 if errors else 0
 
