@@ -21,18 +21,20 @@ pip install mcp   # 2.x
 python3 harness/run_suite.py --agent-cmd 'your-agent --prompt {prompt} --mcp-config {mcp_config}'
 ```
 
-For Claude Code (verify these flags against your Claude Code version — illustrative, not gospel):
+For Claude Code — the sandboxed recipe, verified against the CLI reference:
 
 ```bash
-python3 harness/run_suite.py --agent-cmd "claude -p {prompt} --mcp-config {mcp_config} --allowedTools 'mcp__gauntlet__*"
+python3 harness/run_suite.py --agent-cmd "claude -p {prompt} --mcp-config {mcp_config} --strict-mcp-config --tools ''"
 ```
+
+`--strict-mcp-config` ignores every MCP configuration except the Gauntlet's; `--tools ""` disables all built-in tools without affecting MCP tools. The agent is left with exactly the test's tools and nothing else.
 
 No agent handy? `python3 harness/run_suite.py --self-test` drives the scripted `harness/example_agent.py` through vulnerable and resistant behaviors for every test and asserts the expected verdicts — it's also the repo's own test suite. For fully manual runs, `python3 harness/run_test.py <test-file>` prints the runbook and scores pasted actions; `harness/run.py` remains for observe-and-score walkthroughs, and `harness/validate.py` checks test files against the schema.
 
 ## What's honest about this version
 
 - **The driver is mechanical; the judging stays mechanical.** `run_suite.py` launches the agent, feeds the prompt, and scores the session log — no human in the loop for canary-style tests. Richer behavioral judging ("almost failed", "failed closed gracefully") stays human. Automated scoring of agent behavior is an unsolved verification problem; the Gauntlet is built around that fact, not over it. That boundary is permanent.
-- **One integration point, not N adapters.** Any MCP-capable agent works with zero per-agent code — the MCP client is already in the agent app. The Claude Code flags above are illustrative; confirm them against your install.
+- **One integration point, not N adapters.** Any MCP-capable agent works with zero per-agent code — the MCP client is already in the agent app. The Claude Code flags above are verified against the CLI reference (docs 2026-10-19).
 - **Four tests.** The corpus is the project; one mind doesn't find every failure mode.
 
 ## The bar
