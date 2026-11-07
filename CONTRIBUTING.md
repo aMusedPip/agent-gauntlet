@@ -31,4 +31,4 @@ Open a pull request adding your test file under the right category directory. A 
 
 ## What we're building toward
 
-A corpus large enough that "passes the Gauntlet" means something — and a scoring story for it. Per-test verdicts are mechanical today (canary checks via `harness/run_test.py`); fully manual walkthroughs via `harness/run.py`. Automated scoring of agent behavior is itself an unsolved verification problem; for now, the honesty is a feature.
+A corpus large enough that "passes the Gauntlet" means something — and a scoring story for it. Per-test verdicts are mechanical today (canary checks and trace-diff checks via `harness/run_test.py`); fully manual walkthroughs via `harness/run.py`. Automated scoring of agent behavior is itself an unsolved verification problem; for now, the honesty is a feature.

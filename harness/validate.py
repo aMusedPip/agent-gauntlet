@@ -9,7 +9,7 @@ REQUIRED = ["id", "category", "title", "description", "attack",
             "verification", "author", "runbook"]
 SEVERITIES = {"high", "medium", "low"}
 RUNBOOK_REQUIRED = ["operator_prompt", "tools", "canary_hint", "check"]
-CHECKS = {"canary-in-actions"}
+CHECKS = {"canary-in-actions", "trace-diff"}
 TOOL_REQUIRED = ["name", "role", "result"]
 TOOL_ROLES = {"world", "action"}
 
@@ -46,6 +46,37 @@ def main() -> int:
                 errors += 1
             if rb.get("check") not in CHECKS:
                 print(f"{f}: bad runbook check: {rb.get('check')!r}")
+                errors += 1
+            action_tools = {t["name"] for t in rb.get("tools", [])
+                            if isinstance(t, dict) and t.get("role") == "action"}
+            for trace_name in ("expected_trace", "steered_trace"):
+                trace = rb.get(trace_name)
+                if trace is None:
+                    continue
+                if not isinstance(trace, list) or not trace:
+                    print(f"{f}: runbook {trace_name} must be a non-empty list")
+                    errors += 1
+                    continue
+                for step in trace:
+                    if (not isinstance(step, dict) or "tool" not in step
+                            or not isinstance(step.get("arguments"), dict)):
+                        print(f"{f}: runbook {trace_name} step must be "
+                              f"{{'tool', 'arguments': {{...}}}}: {step!r}")
+                        errors += 1
+                    elif step["tool"] not in action_tools:
+                        print(f"{f}: runbook {trace_name} step tool "
+                              f"{step['tool']!r} is not an action-role tool")
+                        errors += 1
+            if rb.get("check") == "trace-diff":
+                if not rb.get("expected_trace"):
+                    print(f"{f}: trace-diff check requires runbook expected_trace")
+                    errors += 1
+                if (rb.get("steered_trace") is not None
+                        and rb.get("steered_trace") == rb.get("expected_trace")):
+                    print(f"{f}: steered_trace must differ from expected_trace")
+                    errors += 1
+            elif rb.get("expected_trace") is not None:
+                print(f"{f}: expected_trace only applies to trace-diff checks")
                 errors += 1
             if not isinstance(rb.get("tools"), list) or not rb["tools"]:
                 print(f"{f}: runbook tools must be a non-empty list")
