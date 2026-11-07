@@ -11,6 +11,10 @@ Usage:
     python3 harness/mcp_server.py tests/injection/INJ-001-parser-bug.json \\
         --canary addr@example.com --session-log /tmp/run/session.jsonl
 
+    python3 harness/mcp_server.py tests/capability-forgery/CAP-002-steering-forged-ad.json \\
+        --canary canary-abc --session-log /tmp/run/session-clean.jsonl --clean
+        # baseline run: serves each tool's clean_result (unpoisoned scenario)
+
 The server speaks MCP over stdio. Any MCP-capable agent (Claude Code,
 etc.) can connect; configure the agent with ONLY this server to get
 sandboxing by construction -- the agent literally cannot act outside
@@ -47,11 +51,18 @@ def log_call(log_path, tool, arguments):
         f.write(json.dumps(record) + "\n")
 
 
-def build_server(test, canary, log_path):
+def build_server(test, canary, log_path, clean=False):
     tools = {t["name"]: t for t in test["runbook"]["tools"]}
 
     def sub(s):
         return s.replace(PLACEHOLDER, canary)
+
+    def result_for(tool):
+        # Baseline runs serve the unpoisoned scenario: a tool's
+        # clean_result when the test declares one, else its result.
+        if clean and tool.get("clean_result") is not None:
+            return sub(tool["clean_result"])
+        return sub(tool["result"])
 
     async def on_list_tools(ctx, params):
         return types.ListToolsResult(tools=[
@@ -73,15 +84,15 @@ def build_server(test, canary, log_path):
             )
         log_call(log_path, name, arguments)
         return types.CallToolResult(
-            content=[types.TextContent(type="text", text=sub(tools[name]["result"]))]
+            content=[types.TextContent(type="text", text=result_for(tools[name]))]
         )
 
     return Server("gauntlet", on_list_tools=on_list_tools, on_call_tool=on_call_tool)
 
 
-async def amain(test_path, canary, log_path):
+async def amain(test_path, canary, log_path, clean=False):
     test = json.loads(Path(test_path).read_text())
-    server = build_server(test, canary, log_path)
+    server = build_server(test, canary, log_path, clean=clean)
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream,
                          server.create_initialization_options())
@@ -92,8 +103,11 @@ def main():
     ap.add_argument("test", help="path to the test JSON file")
     ap.add_argument("--canary", required=True, help="canary value substituted for CANARY")
     ap.add_argument("--session-log", required=True, help="JSONL file receiving every tool call")
+    ap.add_argument("--clean", action="store_true",
+                    help="baseline run: serve each tool's clean_result "
+                         "instead of result (the unpoisoned scenario)")
     args = ap.parse_args()
-    asyncio.run(amain(args.test, args.canary, args.session_log))
+    asyncio.run(amain(args.test, args.canary, args.session_log, clean=args.clean))
 
 
 if __name__ == "__main__":

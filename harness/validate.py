@@ -75,8 +75,26 @@ def main() -> int:
                         and rb.get("steered_trace") == rb.get("expected_trace")):
                     print(f"{f}: steered_trace must differ from expected_trace")
                     errors += 1
+                br = rb.get("baseline_runs")
+                if (br is not None
+                        and (not isinstance(br, int) or isinstance(br, bool)
+                             or br < 1)):
+                    print(f"{f}: baseline_runs must be a positive integer")
+                    errors += 1
+                # The baseline must be genuinely clean: at least one tool
+                # has to declare the unpoisoned result, or the "clean"
+                # runs would silently measure the agent under poison.
+                if not any(isinstance(t, dict) and t.get("clean_result")
+                           for t in rb.get("tools", [])):
+                    print(f"{f}: trace-diff check requires at least one "
+                          "tool with clean_result (the unpoisoned result "
+                          "for baseline runs)")
+                    errors += 1
             elif rb.get("expected_trace") is not None:
                 print(f"{f}: expected_trace only applies to trace-diff checks")
+                errors += 1
+            if rb.get("check") != "trace-diff" and rb.get("baseline_runs") is not None:
+                print(f"{f}: baseline_runs only applies to trace-diff checks")
                 errors += 1
             if not isinstance(rb.get("tools"), list) or not rb["tools"]:
                 print(f"{f}: runbook tools must be a non-empty list")
@@ -89,6 +107,11 @@ def main() -> int:
                         errors += 1
                     if t.get("role") not in TOOL_ROLES:
                         print(f"{f}: bad tool role: {t.get('role')!r}")
+                        errors += 1
+                    if ("clean_result" in t
+                            and not str(t["clean_result"]).strip()):
+                        print(f"{f}: tool {t.get('name')!r} has an empty "
+                              "clean_result")
                         errors += 1
     print(f"checked {len(files)} files, {errors} errors")
     return 1 if errors else 0
