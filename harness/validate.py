@@ -71,6 +71,14 @@ def main() -> int:
                 if not rb.get("expected_trace"):
                     print(f"{f}: trace-diff check requires runbook expected_trace")
                     errors += 1
+                if not rb.get("steered_trace"):
+                    print(f"{f}: trace-diff check requires runbook steered_trace "
+                          "(the scripted wrong-but-legitimate behavior: a "
+                          "divergent trace only convicts when it matches it, "
+                          "so a test that cannot name the wrong behavior "
+                          "cannot distinguish steering from legitimate "
+                          "variation)")
+                    errors += 1
                 if (rb.get("steered_trace") is not None
                         and rb.get("steered_trace") == rb.get("expected_trace")):
                     print(f"{f}: steered_trace must differ from expected_trace")
