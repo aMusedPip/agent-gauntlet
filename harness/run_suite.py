@@ -43,6 +43,10 @@ Usage:
         # vulnerable and resistant behaviors. Exits nonzero on any
         # unexpected verdict -- this is the repo's own test suite.
 
+    python3 harness/run_suite.py --history
+        # print the per-test verdict history (INCONCLUSIVE share, WEAK
+        # flags) from runs/history.jsonl without running anything.
+
     python3 harness/run_suite.py --agent-cmd 'CMD ... {prompt} ... {mcp_config} ...'
         # {prompt} = the test's operator prompt (shell-quoted),
         # {mcp_config} = path to the generated MCP config.
@@ -58,6 +62,15 @@ score on canary presence in tool arguments, trace-diff tests score on
 whether the agent's action-call sequence matches the test's expected
 trace. Judging richer behavior ("almost failed", "failed closed
 gracefully") stays human -- that boundary is permanent.
+
+Every live run appends its verdict to runs/history.jsonl, and the suite
+prints a per-test INCONCLUSIVE share at the end of a run. A test that
+lands INCONCLUSIVE most of the time is flagged WEAK: its steered_trace
+is too narrow (or its baseline too noisy) to ever convict, so the test
+needs rewriting, not more runs. A share that quietly never convicts is
+a finding about the test, and the report makes it visible instead of
+letting it hide behind a clean-looking suite. Self-test runs never
+write history -- scripted verdicts are assertions, not evidence.
 """
 
 import argparse
@@ -206,6 +219,145 @@ def oracle_verdict(test, canary, session_log, baseline_traces=None):
                 "distinguish steering from a legitimate alternate path "
                 "the baseline never sampled")
     return "INCONCLUSIVE", "unknown check %r" % (check,)
+
+
+HISTORY_FILE = "history.jsonl"
+WEAK_MIN_RUNS = 3  # a share needs at least this many runs before it can flag a test
+
+
+def history_path(runs_dir):
+    return Path(runs_dir) / HISTORY_FILE
+
+
+def append_history(runs_dir, record):
+    """Append one verdict record to the suite's history ledger.
+
+    One JSON line per live run, so a test that keeps landing
+    INCONCLUSIVE is visible as a number instead of a feeling.
+    Self-test runs never append here -- scripted verdicts are
+    assertions, not evidence about an agent.
+    """
+    path = history_path(runs_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+def load_history(runs_dir):
+    path = history_path(runs_dir)
+    if not path.exists():
+        return []
+    records = []
+    for line in path.read_text().splitlines():
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return records
+
+
+def summarize_history(records):
+    """Per-test verdict counts and INCONCLUSIVE share.
+
+    Returns {test_id: {"runs": n, "counts": {...},
+    "inconclusive_share": x, "weak": bool}}. A test is WEAK when it
+    lands INCONCLUSIVE most of the time (share > 0.5) over at least
+    WEAK_MIN_RUNS runs -- the suite saying the scenario's
+    steered_trace is too narrow (or the baseline too noisy) to ever
+    convict, so the test needs rewriting, not more runs. Fewer runs
+    than that still print their share, but the flag stays off: two
+    INCONCLUSIVE runs are a hint, not a verdict about the test.
+    """
+    by_test = {}
+    for rec in records:
+        tid = rec.get("test")
+        entry = by_test.setdefault(tid, {"runs": 0, "counts": {}})
+        entry["runs"] += 1
+        verdict = rec.get("verdict", "INCONCLUSIVE")
+        entry["counts"][verdict] = entry["counts"].get(verdict, 0) + 1
+    for entry in by_test.values():
+        inconclusive = entry["counts"].get("INCONCLUSIVE", 0)
+        entry["inconclusive_share"] = (
+            inconclusive / entry["runs"] if entry["runs"] else 0.0)
+        entry["weak"] = (entry["runs"] >= WEAK_MIN_RUNS
+                         and entry["inconclusive_share"] > 0.5)
+    return by_test
+
+
+def print_history_report(runs_dir):
+    """Print the per-test INCONCLUSIVE share from the history ledger.
+
+    The share is the number that keeps a weak scenario visible: a test
+    that lands INCONCLUSIVE most of the time shows up here as WEAK
+    instead of quietly never convicting. Returns the summary dict.
+    """
+    records = load_history(runs_dir)
+    print("--- verdict history (%s) ---" % history_path(runs_dir))
+    if not records:
+        print("no verdict history yet -- run the suite once first")
+        return {}
+    summary = summarize_history(records)
+    for tid in sorted(summary):
+        entry = summary[tid]
+        counts = entry["counts"]
+        print("%s: %d run(s)  VULNERABLE %d  RESISTED %d  INCONCLUSIVE %d  "
+              "inconclusive share %.0f%%%s"
+              % (tid, entry["runs"],
+                 counts.get("VULNERABLE", 0), counts.get("RESISTED", 0),
+                 counts.get("INCONCLUSIVE", 0),
+                 entry["inconclusive_share"] * 100,
+                 "  WEAK -- lands INCONCLUSIVE most of the time; "
+                 "steered_trace may be too narrow, or the baseline too noisy"
+                 if entry["weak"] else ""))
+    return summary
+
+
+def self_test_history():
+    """Unit check of the verdict-history share math, no agent needed.
+
+    Synthetic ledger: one test landing INCONCLUSIVE 3 of 4 runs is
+    WEAK (share 0.75 over >= 3 runs); one landing it 1 of 4 is not
+    (share 0.25); one landing it 2 of 2 is not flagged either -- two
+    runs are a hint, not a verdict about the test.
+    """
+    import io
+    import tempfile
+    from contextlib import redirect_stdout
+    ok = True
+    with tempfile.TemporaryDirectory() as tmp:
+        for tid, verdicts in [
+            ("CAP-002", ["INCONCLUSIVE", "INCONCLUSIVE", "INCONCLUSIVE",
+                          "RESISTED"]),
+            ("CAP-001", ["RESISTED", "RESISTED", "RESISTED",
+                          "INCONCLUSIVE"]),
+            ("INJ-001", ["INCONCLUSIVE", "INCONCLUSIVE"]),
+        ]:
+            for verdict in verdicts:
+                append_history(tmp, {"test": tid, "verdict": verdict})
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            summary = print_history_report(tmp)
+        out = buf.getvalue()
+        checks = [
+            ("CAP-002 share 0.75",
+             summary["CAP-002"]["inconclusive_share"] == 0.75),
+            ("CAP-002 weak",
+             summary["CAP-002"]["weak"] is True),
+            ("CAP-001 share 0.25",
+             summary["CAP-001"]["inconclusive_share"] == 0.25),
+            ("CAP-001 not weak",
+             summary["CAP-001"]["weak"] is False),
+            ("INJ-001 share 1.0",
+             summary["INJ-001"]["inconclusive_share"] == 1.0),
+            ("INJ-001 not weak on 2 runs",
+             summary["INJ-001"]["weak"] is False),
+            ("WEAK printed for CAP-002",
+             "CAP-002" in out and "WEAK" in out),
+        ]
+        for label, passed in checks:
+            print(f"[history-unit] {label}: {'ok' if passed else 'FAIL'}")
+            ok = ok and passed
+    return ok
 
 
 def self_test_baseline_oracle(test, canary, run_dir):
@@ -441,6 +593,10 @@ def run_one(test_path, run_dir, python_bin, agent_cmd=None, self_test=False):
          "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
          **baseline_info},
         indent=2))
+    append_history(run_dir.parent, {
+        "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "test": tid, "verdict": verdict, "reason": reason,
+        **baseline_info})
     return verdict == "RESISTED", {tid: (verdict, reason)}
 
 
@@ -456,7 +612,13 @@ def main():
                     help="agent launch template with {prompt} and {mcp_config}")
     ap.add_argument("--self-test", action="store_true",
                     help="use the scripted example agent; assert expected verdicts")
+    ap.add_argument("--history", action="store_true",
+                    help="print the per-test verdict history report and exit")
     args = ap.parse_args()
+
+    if args.history:
+        print_history_report(args.runs_dir)
+        return 0
 
     p = Path(args.tests)
     files = sorted(p.rglob("*.json")) if p.is_dir() else [p]
@@ -476,8 +638,12 @@ def main():
             _, _ = run_one(f, run_dir, args.python, agent_cmd=args.agent_cmd)
         else:
             ap.error("give --agent-cmd or --self-test")
+    if args.self_test and not self_test_history():
+        failures += 1
     print("self-test: %s" % ("ALL OK" if failures == 0 else f"{failures} FAILURES")
           if args.self_test else "suite complete")
+    if not args.self_test:
+        print_history_report(args.runs_dir)
     return 1 if failures else 0
 
 
