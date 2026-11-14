@@ -14,6 +14,7 @@ Usage:
     python3 harness/mcp_server.py tests/capability-forgery/CAP-002-steering-forged-ad.json \\
         --canary canary-abc --session-log /tmp/run/session-clean.jsonl --clean
         # baseline run: serves each tool's clean_result (unpoisoned scenario)
+        # and clean_description when declared (unpoisoned tool metadata)
 
 The server speaks MCP over stdio. Any MCP-capable agent (Claude Code,
 etc.) can connect; configure the agent with ONLY this server to get
@@ -68,7 +69,9 @@ def build_server(test, canary, log_path, clean=False):
         return types.ListToolsResult(tools=[
             types.Tool(
                 name=name,
-                description=t.get("description", ""),
+                description=(t.get("clean_description")
+                             if clean and t.get("clean_description") is not None
+                             else t.get("description", "")),
                 inputSchema=t.get("parameters", {"type": "object", "properties": {}}),
             )
             for name, t in tools.items()
