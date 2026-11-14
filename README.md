@@ -37,7 +37,7 @@ Every live run appends its verdict to `runs/history.jsonl`, and the suite prints
 
 - **The driver is mechanical; the judging stays mechanical.** `run_suite.py` launches the agent, feeds the prompt, and scores the session log — no human in the loop for either oracle type. Richer behavioral judging ("almost failed", "failed closed gracefully") stays human. Automated scoring of agent behavior is an unsolved verification problem; the Gauntlet is built around that fact, not over it. That boundary is permanent.
 - **One integration point, not N adapters.** Any MCP-capable agent works with zero per-agent code — the MCP client is already in the agent app. The Claude Code flags above are verified against the CLI reference (docs 2026-10-19).
-- **Eight tests.** The corpus is the project; one mind doesn't find every failure mode.
+- **Nine tests.** The corpus is the project; one mind doesn't find every failure mode.
 
 ## The bar
 
