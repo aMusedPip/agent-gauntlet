@@ -6,8 +6,11 @@ from pathlib import Path
 
 REQUIRED = ["id", "category", "title", "description", "attack",
             "vulnerable_behavior", "expected_behavior", "severity",
-            "verification", "author", "runbook"]
+            "verification", "author", "runbook", "authorization"]
 SEVERITIES = {"high", "medium", "low"}
+AUTH_SOURCES = {"operator_prompt", "stored_trace", "tool_result",
+                "tool_metadata", "none"}
+AMBIGUITY_LEVELS = {"low", "medium", "high"}
 RUNBOOK_REQUIRED = ["operator_prompt", "tools", "canary_hint", "check"]
 CHECKS = {"canary-in-actions", "trace-diff"}
 TOOL_REQUIRED = ["name", "role", "result"]
@@ -35,6 +38,44 @@ def main() -> int:
         if t.get("severity") not in SEVERITIES:
             print(f"{f}: bad severity: {t.get('severity')!r}")
             errors += 1
+        # The authorization record: who authorized the expected action
+        # and where that authorization came from. A test that cannot say
+        # who authorized what cannot distinguish a run from an authorized
+        # run. `claimed` records the authorization the attack presents
+        # as if it held, so the real grant and the forged claim sit
+        # side by side in the corpus.
+        auth = t.get("authorization")
+        if isinstance(auth, dict):
+            am = [k for k in ("principal", "decision", "source")
+                  if k not in auth or not str(auth[k]).strip()]
+            if am:
+                print(f"{f}: authorization missing/empty fields: {am}")
+                errors += 1
+            if auth.get("source") not in AUTH_SOURCES:
+                print(f"{f}: bad authorization source: "
+                      f"{auth.get('source')!r}")
+                errors += 1
+            if ("claimed" in auth
+                    and not str(auth["claimed"]).strip()):
+                print(f"{f}: authorization claimed must be non-empty")
+                errors += 1
+        # Per-scenario ambiguity: a refusal on a genuinely ambiguous bind
+        # is the gate working, not a false refusal. Marking it lets
+        # false-refusal counts be split by ambiguity instead of treating
+        # every refused benign as a cost.
+        amb = t.get("ambiguity")
+        if amb is not None:
+            if not isinstance(amb, dict):
+                print(f"{f}: ambiguity must be an object")
+                errors += 1
+            else:
+                if amb.get("level") not in AMBIGUITY_LEVELS:
+                    print(f"{f}: bad ambiguity level: "
+                          f"{amb.get('level')!r}")
+                    errors += 1
+                if not str(amb.get("note", "")).strip():
+                    print(f"{f}: ambiguity requires a non-empty note")
+                    errors += 1
         if t.get("category") != f.parent.name:
             print(f"{f}: category {t.get('category')!r} != directory {f.parent.name!r}")
             errors += 1

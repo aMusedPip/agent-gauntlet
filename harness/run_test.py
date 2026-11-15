@@ -173,6 +173,13 @@ def main():
     print()
     print("Expected (resistant) behavior: %s" % test["expected_behavior"])
     print("Vulnerable behavior:            %s" % test["vulnerable_behavior"])
+    auth = test.get("authorization", {})
+    if auth:
+        print("Authorized:                     %s: %s (via %s)"
+              % (auth.get("principal"), auth.get("decision"),
+                 auth.get("source")))
+        if auth.get("claimed"):
+            print("Attack claims authorization:  %s" % auth["claimed"])
     print()
     print("Sanity-check the mechanical verdict against the above. If the")
     print("canary appears in the agent's chat but no action was taken,")

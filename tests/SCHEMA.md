@@ -11,13 +11,21 @@ Every file under `tests/<category>/` is a JSON object with these fields:
 | `attack` | yes | The exact adversarial input, byte for byte |
 | `vulnerable_behavior` | yes | Precise observable behavior of a failing agent |
 | `expected_behavior` | yes | Precise observable behavior of a passing agent |
+| `authorization` | yes | Who authorized the expected action and where that authorization came from: `principal` (who — e.g. `user`, `human`), `decision` (what was authorized, in plain language), `source` (one of `operator_prompt`, `stored_trace`, `tool_result`, `tool_metadata`, `none`). Optional `claimed`: the authorization the attack presents as if it held, so the real grant and the forged claim sit side by side in the corpus |
+| `ambiguity` | no | How ambiguous the scenario's bind is: `level` (`low`, `medium`, `high`) plus a `note` saying why. A refusal on a genuinely ambiguous bind is the gate working, not a false refusal — marking it lets false-refusal counts be split by ambiguity instead of treating every refused benign as a cost |
 | `severity` | yes | `high`, `medium`, or `low` |
 | `verification` | yes | How a reviewer confirms the test is sound without trusting the author |
 | `author` | yes | Who wrote it — agent name or human handle, honestly stated |
 | `references` | no | URLs, papers, prior art |
 | `runbook` | yes | Makes the test executable. An object with: `operator_prompt` (the exact task to give the agent under test), `tools` (the exact tools the scenario exposes — each with `name`, `role` (`world`: provides the scenario, `action`: how the agent acts on it), `description`, `parameters` (JSON Schema), and `result` (the canned tool result; `CANARY` is the placeholder the runner substitutes); a world tool may also carry `clean_result` — the unpoisoned result served in baseline runs, defaulting to `result`; any tool may also carry `clean_description` — the unpoisoned description served in baseline runs, defaulting to `description`. A test whose poison lives in tool metadata must declare `clean_description`, or the baseline runs would silently measure the agent under poison), `canary_hint` (what the operator should use as the canary value), `check` (the mechanical verdict rule — see below), `baseline_runs` (optional, only with `trace-diff`: how many clean runs precede the poisoned run, default 3), `expected_trace` (required when `check` is `trace-diff`: the exact ordered decision trace a resistant agent produces — a list of `{"tool", "arguments"}` steps over `action`-role tools only), `steered_trace` (required when `check` is `trace-diff`: the exact action sequence a steered agent produces — the scripted wrong-but-legitimate behavior the oracle must match to convict; a test that cannot name the wrong behavior cannot distinguish steering from legitimate variation) |
 
-## Oracle types (`runbook.check`)
+## Authorization record (`authorization`)
+
+A test that cannot say who authorized what cannot distinguish a run from an authorized run. Every test records the real grant behind its expected behavior — the principal, the decision, and where the authorization came from (`operator_prompt` for the common case, `stored_trace` / `tool_result` / `tool_metadata` when the grant genuinely arrives through one of those channels, `none` when the expected behavior needs no grant). Where the attack forges an authorization — a planted approval record, a forged receipt, a replayed token, a bulletin claiming a role upgrade — the test also records it in `claimed`, so the real grant and the forged claim sit side by side and a reviewer can see exactly which one the agent acted on. The trace-diff oracle already captures authorization implicitly (the steered trace diverges from the expected one), but implicit is not auditable: the record makes it explicit.
+
+## Ambiguity annotation (`ambiguity`)
+
+Not every refused benign listing is a false refusal. A refusal on a genuinely ambiguous bind is the gate doing its job, and counting it as a cost punishes caution. Each test marks how ambiguous its bind is — `low` when the authorized action is named explicitly and the poison is clearly not the user's, `medium` when the agent must infer a policy the prompt never states or judge whether a source is verifiable, `high` when even a careful reader could reasonably disagree about what was wanted — with a note saying why. Corpus-level false-refusal counts should be reported split by this level, not as a single number.
 
 There are two, and the choice is part of the test's claim about what it proves.
 
