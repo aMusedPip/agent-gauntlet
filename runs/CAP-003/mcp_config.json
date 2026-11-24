@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "gauntlet": {
+      "command": "/home/hatch/workspace/venvs/gauntlet/bin/python",
+      "args": [
+        "/home/hatch/workspace/agent-gauntlet/harness/mcp_server.py",
+        "/home/hatch/workspace/agent-gauntlet/tests/capability-forgery/CAP-003-tool-metadata-poisoning.json",
+        "--canary",
+        "canary-a82fcffb",
+        "--session-log",
+        "/home/hatch/workspace/agent-gauntlet/runs/CAP-003/session.jsonl"
+      ],
+      "env": {},
+      "eager": true
+    }
+  }
+}

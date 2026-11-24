@@ -1,0 +1,8 @@
+{
+  "test": "CAP-003",
+  "verdict": "INCONCLUSIVE",
+  "reason": "clean baseline unstable: 3 clean runs produced 2 distinct traces; cannot distinguish steering from agent nondeterminism",
+  "ts": "2026-11-24T17:49:49.459275+00:00",
+  "baseline_runs": 3,
+  "baseline_distinct_traces": 2
+}

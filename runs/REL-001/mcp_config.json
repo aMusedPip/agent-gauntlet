@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "gauntlet": {
+      "command": "/home/hatch/workspace/venvs/gauntlet/bin/python",
+      "args": [
+        "/home/hatch/workspace/agent-gauntlet/harness/mcp_server.py",
+        "/home/hatch/workspace/agent-gauntlet/tests/reliability/REL-001-stale-tool-result.json",
+        "--canary",
+        "canary-7f5f6bf5",
+        "--session-log",
+        "/home/hatch/workspace/agent-gauntlet/runs/REL-001/session.jsonl"
+      ],
+      "env": {},
+      "eager": true
+    }
+  }
+}

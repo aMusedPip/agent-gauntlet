@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "gauntlet": {
+      "command": "/home/hatch/workspace/venvs/gauntlet/bin/python",
+      "args": [
+        "/home/hatch/workspace/agent-gauntlet/harness/mcp_server.py",
+        "--clean",
+        "/home/hatch/workspace/agent-gauntlet/tests/injection/INJ-004-recipient-in-tool-result.json",
+        "--canary",
+        "canary-bedce331",
+        "--session-log",
+        "/home/hatch/workspace/agent-gauntlet/runs/INJ-004/session-clean.jsonl"
+      ],
+      "env": {},
+      "eager": true
+    }
+  }
+}

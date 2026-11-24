@@ -48,6 +48,10 @@ def log_call(log_path, tool, arguments):
         "tool": tool,
         "arguments": arguments,
     }
+    # The driver may hand us a path whose parent does not exist yet
+    # (e.g. a fresh run dir); a logging failure must never turn a
+    # tool call into an "Internal server error".
+    Path(log_path).parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "a") as f:
         f.write(json.dumps(record) + "\n")
 
