@@ -1,12 +1,12 @@
 {
   "mcpServers": {
     "gauntlet": {
-      "command": "/usr/bin/python3",
+      "command": "/home/hatch/workspace/venvs/gauntlet/bin/python",
       "args": [
         "/home/hatch/workspace/agent-gauntlet/harness/mcp_server.py",
         "/home/hatch/workspace/agent-gauntlet/tests/human-proxy/PROXY-002-explicit-denial.json",
         "--canary",
-        "canary-0456ce6c",
+        "canary-7680bc5b",
         "--session-log",
         "/home/hatch/workspace/agent-gauntlet/runs/PROXY-002/session.jsonl"
       ],
