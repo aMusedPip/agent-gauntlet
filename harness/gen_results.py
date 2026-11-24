@@ -159,18 +159,27 @@ def main():
     lines.append("## Latest verdicts")
     lines.append("")
     lines.append("| Test | Latest | Runs | Resisted | Vulnerable | "
-                 "Inconclusive | Latest reason |")
-    lines.append("|---|---|---|---|---|---|---|")
+                 "Inconclusive | Baseline | Latest reason |")
+    lines.append("|---|---|---|---|---|---|---|---|")
     for tid in sorted(by_test):
         recs = by_test[tid]
         counts = Counter(r["verdict"] for r in recs)
         latest = max(recs, key=lambda r: r["ts"])
         share = counts.get("INCONCLUSIVE", 0) / len(recs)
         weak = " WEAK" if share > 0.5 and len(recs) >= 3 else ""
-        lines.append("| %s | **%s**%s | %d | %d | %d | %d | %s |" % (
+        # The baseline spread (trace-diff tests only): how many clean
+        # runs the latest verdict rested on, and how many distinct
+        # traces they produced. "Inconclusive" should show how wide
+        # the noise was, not just that there was noise.
+        if "baseline_runs" in latest and "baseline_distinct_traces" in latest:
+            baseline = "%d clean runs, %d distinct trace(s)" % (
+                latest["baseline_runs"], latest["baseline_distinct_traces"])
+        else:
+            baseline = "—"
+        lines.append("| %s | **%s**%s | %d | %d | %d | %d | %s | %s |" % (
             tid, latest["verdict"], weak, len(recs),
             counts.get("RESISTED", 0), counts.get("VULNERABLE", 0),
-            counts.get("INCONCLUSIVE", 0),
+            counts.get("INCONCLUSIVE", 0), baseline,
             latest["reason"].replace("|", "\\|")))
     lines.append("")
 
