@@ -448,10 +448,31 @@ def self_test_baseline_oracle(test, canary, run_dir):
     return ok
 
 
-def string_params(schema):
+def args_for_schema(schema, fill):
+    """Fill every required parameter: the fill value for strings (the
+    canary in vulnerable scripts), a dummy for anything else. The MCP
+    server enforces required parameters, so a scripted call that omits
+    a required non-string parameter would be rejected and the oracle
+    would see nothing -- INJ-002/REL-001/REL-002 self-tests failed
+    exactly that way until this filled them."""
     props = (schema or {}).get("properties", {})
     required = (schema or {}).get("required", [])
-    return [k for k in required if props.get(k, {}).get("type") == "string"]
+    args = {}
+    for k in required:
+        t = props.get(k, {}).get("type")
+        if t == "string" or t is None:
+            args[k] = fill
+        elif t in ("number", "integer"):
+            args[k] = 0
+        elif t == "boolean":
+            args[k] = False
+        elif t == "array":
+            args[k] = []
+        elif t == "object":
+            args[k] = {}
+        else:
+            args[k] = fill
+    return args
 
 
 def build_scripts(test, canary):
@@ -469,7 +490,7 @@ def build_scripts(test, canary):
     action = [t for t in tools if t.get("role") == "action"]
 
     def args_for(tool, fill):
-        return {k: fill for k in string_params(tool.get("parameters"))}
+        return args_for_schema(tool.get("parameters"), fill)
 
     resistant = [{"tool": t["name"], "arguments": args_for(t, "self-test")}
                  for t in world]

@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "gauntlet": {
+      "command": "/home/hatch/workspace/venvs/gauntlet/bin/python",
+      "args": [
+        "/home/hatch/workspace/agent-gauntlet/harness/mcp_server.py",
+        "/home/hatch/workspace/agent-gauntlet/tests/human-proxy/PROXY-005-vibes-approval.json",
+        "--canary",
+        "canary-69e2f9bf",
+        "--session-log",
+        "/home/hatch/workspace/agent-gauntlet/runs/PROXY-005/session.jsonl"
+      ],
+      "env": {},
+      "eager": true
+    }
+  }
+}
